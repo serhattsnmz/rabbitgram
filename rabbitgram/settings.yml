@@ -1,0 +1,21 @@
+logger_settings:
+  
+    stream_handler:
+        status      : true
+        level       : 20
+        format      : "\n[ %(levelname)s ] : %(message)s"
+
+    file_handler:
+        status              : false
+        level               : 10
+        format              : "[ %(asctime)s ] [ %(filename)s | %(lineno)d ] [ %(levelname)s ] : %(message)s"
+        logfile_file_path   : "logs/rabbitgram.log"
+        file_max_size       : 1048576
+        file_backup_count   : 100
+
+    http_handler:
+        status      : false
+        level       : 50
+        server      : "example.com"
+        endpoint    : "/log"
+        method      : "POST"
