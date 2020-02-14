@@ -1,12 +1,12 @@
 logger_settings:
   
     stream_handler:
-        status      : true
+        status      : false
         level       : 20
         format      : "\n[ %(levelname)s ] : %(message)s"
 
     file_handler:
-        status              : false
+        status              : true
         level               : 10
         format              : "[ %(asctime)s ] [ %(filename)s | %(lineno)d ] [ %(levelname)s ] : %(message)s"
         logfile_file_path   : "logs/rabbitgram.log"
