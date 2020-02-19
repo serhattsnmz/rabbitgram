@@ -139,9 +139,7 @@ class RabbitgramConsole:
                     for k, v in result["user_info"].items()]
             
             print(tabulate(user_info, tablefmt="plain"))
-            self.save_to_output_file(
-                f'{message}\n{"-" * len(message)}\n{tabulate(user_info_without_color, tablefmt="plain")}'
-                )
+            self.save_to_output_file(f'{message}\n{"-" * len(message)}\n{tabulate(user_info_without_color, tablefmt="plain")}')
 
         else:
             raise Exception(result["error"])
