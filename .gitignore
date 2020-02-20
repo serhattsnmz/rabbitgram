@@ -1,6 +1,8 @@
 /logs
 /test
 /*settings.yml
+/*test.*
+/*output.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

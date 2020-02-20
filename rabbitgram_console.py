@@ -1,10 +1,12 @@
-import json
-import argparse
-import colorama
-import yaml
 import os
 import sys
+import time
+import json
+import argparse
+import yaml
+import colorama
 
+from datetime               import datetime
 from termcolor              import cprint
 from tabulate               import tabulate
 
@@ -20,8 +22,13 @@ print_cyan      = lambda message, end="\n" : cprint(message, "cyan",    end=end,
 print_error     = lambda message, end="\n" : print_red("[x] " + message, end)
 print_info      = lambda message, end="\n" : print_yellow("[i] " + message, end)
 print_success   = lambda message, end="\n" : print_green("[\u2713] " + message, end)
+print_dialog    = lambda message, end="\n" : print_yellow("[>] " + message, end)
 
 capitalize_all  = lambda sentences : " ".join([k.capitalize() for k in sentences.split(" ")])
+is_path_file    = lambda path : True if len([k for k in path.split("/")[-1].split(".") if k != ""]) == 2 else False
+is_path_dir     = lambda path : True if len([k for k in path.split("/")[-1].split(".") if k != ""]) == 1 else False
+
+LOGGER = Logger().create_logger("console")
 
 class RabbitgramConsole:
     
@@ -30,6 +37,7 @@ class RabbitgramConsole:
             try:
                 return func(self, *args, **kwargs)
             except Exception as exp:
+                LOGGER.exception("System Error!")
                 print_error(str(exp))
                 sys.exit(1)
         return wrapper
@@ -42,26 +50,48 @@ class RabbitgramConsole:
         self.username   = None
         self.password   = None
         self.account    = None
-        self.file_path  = None
 
         self.get_settings()
         self.login(self.username, self.password)
 
     @exception_handler
     def parse_args(self):
-        parser = argparse.ArgumentParser(description="Rabbitgram : The Fastest Instagram Scrapper")
+        parser = argparse.ArgumentParser(description="Rabbitgram : The Fastest Instagram Scraper")
 
-        parser.add_argument("-u", "--username", metavar="", help="User username")
-        parser.add_argument("-p", "--password", metavar="", help="User password")
-        parser.add_argument("-a", "--account",  metavar="", help="Account username for scrapping")
+        parser.add_argument("-u", "--username", metavar="",          help="User username")
+        parser.add_argument("-p", "--password", metavar="",          help="User password")
+        parser.add_argument("-a", "--account",  metavar="",          help="Account username for scraping")
 
-        parser.add_argument("-P", "--path",     metavar="", help="The directory path for saving media")
-        parser.add_argument("-o", "--output",   metavar="", help="The file path for saving result")
-        parser.add_argument("-s", "--settings", metavar="", help="The settings file path")
+        parser.add_argument("-s", "--settings", metavar="",          help="The user settings file path")
 
-        parser.add_argument("--info",     action='store_true', help="Show account info")
-        parser.add_argument("--video",    action='store_true', help="Download user video. Default : False")
-        return parser.parse_args()
+        parser.add_argument("--info",           action='store_true', help="Get account general information")
+        parser.add_argument("--posts",          action='store_true', help="Get user posts' information")
+        parser.add_argument("--media",          action='store_true', help="Get user media information")
+        parser.add_argument("-l", "--list",     metavar="",          help="Download from account list file")
+        
+        parser.add_argument("-o", "--output",   metavar="",          help="The file/directory path for saving result")
+        parser.add_argument("--save",           action='store_true', help="Save the media or information")
+        parser.add_argument("--download",       action='store_true', help="Download the media")
+        parser.add_argument("--video",          action='store_true', help="Include videos for download. Default : False")
+
+        args = parser.parse_args()
+        return {
+            "username"  : getattr(args, "username", None),
+            "password"  : getattr(args, "password", None),
+            "account"   : getattr(args, "account",  None),
+
+            "settings"  : getattr(args, "settings", None),
+            
+            "info"      : getattr(args, "info",     False),
+            "posts"     : getattr(args, "posts",    False),
+            "media"     : getattr(args, "media",    False),
+            "list"      : getattr(args, "list",     None),
+
+            "output"    : getattr(args, "output",   None),
+            "save"      : getattr(args, "save",     False),
+            "download"  : getattr(args, "download", False),
+            "video"     : getattr(args, "video",    False),
+        }
 
     @exception_handler
     def get_settings(self):
@@ -70,12 +100,12 @@ class RabbitgramConsole:
             They must be given either args or in settings file.
             Include >> username - password - account
         """
-        settings_path = getattr(self.args, "settings", None)
+        settings_path = self.args["settings"]
         settings = None
 
-        username  = getattr(self.args, "username", None)
-        password  = getattr(self.args, "password", None)
-        account   = getattr(self.args, "account", None)
+        username  = self.args["username"]
+        password  = self.args["password"]
+        account   = self.args["account"]
 
         # Open >> settings file
         if settings_path and os.path.isfile(settings_path):
@@ -99,13 +129,16 @@ class RabbitgramConsole:
 
     @exception_handler
     def save_to_output_file(self, content):
-        file_path = getattr(self.args, "output", None)
-        if file_path:
+        if self.args["save"]:
+            file_path = self.args["output"]
+            if not file_path or not is_path_file(file_path):
+                file_path = "./output.json" if type(content) in [dict, list] else "./output.txt"
             with open(file_path, "w", encoding="utf-8") as f:
-                if type(content) == dict:
-                    json.dump(content, f)
+                if type(content) in [dict, list]:
+                    json.dump(content, f, indent=4, sort_keys=True)
                 else:
                     f.write(content)
+                print_success(f"Result is saved in '{file_path}'.")
 
     @exception_handler
     def login(self, username, password):
@@ -117,14 +150,16 @@ class RabbitgramConsole:
         else:
             raise Exception(result["error"])
 
+
     @exception_handler
-    def print_user_information(self):
+    def user_information(self):
         print_info("Getting user information...")
         result = self.rabbitgram.get_user_information(self.account)
 
         if result["status"]:
-            print_success("User information successfully scrapped.", "\n\n")
-            message = f"    User Information For '{self.account}'    "
+            # Print user information
+            print_success("User information successfully scraped.", "\n\n")
+            message = f"User Information For '{self.account}'"
             print_magenta(message)
             print_magenta("-" * len(message))
 
@@ -138,18 +173,137 @@ class RabbitgramConsole:
                 [f"{capitalize_all(k.replace('_', ' ')).ljust(max_string_lenght, '.')} :" , f"{v}"] 
                     for k, v in result["user_info"].items()]
             
-            print(tabulate(user_info, tablefmt="plain"))
+            # Print table
+            print(tabulate(user_info, tablefmt="plain"), end="\n\n")
+
+            # Save output to file
             self.save_to_output_file(f'{message}\n{"-" * len(message)}\n{tabulate(user_info_without_color, tablefmt="plain")}')
 
         else:
-            raise Exception(result["error"])
+            print_error(result["error"])
+            print_error("User information could not be retrieved!")
+
+    @exception_handler
+    def post_list(self):        
+        print_info("Getting account media links...")
+        result = self.rabbitgram.get_user_media(self.account)
+        if result["status"]:
+            print_success("Account media successfully scraped.")
+
+            images = []
+            videos = []
+
+            for post in result["user_media"]:
+                for media in post["media_list"]:
+                    if media["is_video"] : videos.append(media["video_url"])
+                    else                 : images.append(media["picture_url"])
+
+            message = f"""
+            Total Found Media   : {len(result["user_media"])}
+            Total Images        : {len(images)}
+            Total Videos        : {len(videos)}
+            """
+            print_cyan(message)
+
+            self.save_to_output_file(result["user_media"])
+        else:
+            print_error(result["error"])
+            print_error("Account media links could not be retrieved.")
+
+    @exception_handler
+    def user_media(self):
+        print_info("Getting account media links...")
+        result = self.rabbitgram.get_user_media(self.account)
+
+        if result["status"]:
+            print_success("Account media successfully scraped.")
+
+            # Get images and videos
+            images = []
+            videos = []
+
+            for post in result["user_media"]:
+                for media in post["media_list"]:
+                    if media["is_video"] : videos.append(media["video_url"])
+                    else                 : images.append(media["picture_url"])
+
+            # Print account information to console
+            message = f"""
+            Total Found Media   : {len(result["user_media"])}
+            Total Images        : {len(images)}
+            Total Videos        : {len(videos)}
+            """
+            print_cyan(message)
+
+            # Save to file
+            if self.args["save"]:
+                self.save_to_output_file({"images" : images, "videos" : videos})
+
+            # Download media
+            if self.args["download"]:
+
+                # Create folder
+                path = None
+                if self.args["output"] and is_path_dir(self.args["output"]):
+                    path = self.args["output"] + "/" + self.account
+                else:
+                    path = "./" + self.account
+
+                if not os.path.exists(path) : os.makedirs(path)
+                print_success("Folders are created.")
+
+                # Download media
+                _total = len(images) + len(videos)
+                _downloaded = _error = _replica = 0
+
+                message = "Total : {} | Downloaded : {} | Replica : {} | Error : {}"
+                
+                for media in result["user_media"]:
+                    taken_time = datetime.fromtimestamp(media["timestamp"]).strftime("%Y-%m-%d-%H-%M-%S")
+                    for inner_media in media["media_list"]:
+
+                        # Create media path
+                        media_path = path + "/" + taken_time + "-" + inner_media["id"]
+                        media_path += ".jpg" if not inner_media["is_video"] else ".mp4"
+
+                        # Replica
+                        if os.path.isfile(media_path):
+                            _replica += 1
+                        else:
+                            # Download video
+                            if inner_media["is_video"] and self.args["video"]:
+                                _r = self.rabbitgram.download_media(media_path, inner_media["video_url"])
+                                if _r["status"] : _downloaded += 1
+                                else : _error += 1
+
+                            # Download photo
+                            if not inner_media["is_video"]:
+                                _r = self.rabbitgram.download_media(media_path, inner_media["picture_url"])
+                                if _r["status"] : _downloaded += 1
+                                else : _error += 1
+
+                        print_info(message.format(_total, _downloaded, _replica, _error), end="\r")
+
+                print("")
+                print_success(f"All media are donwloaded in '{path}'.")
+        else:
+            print_error(result["error"])
+            print_error("Account media could not be retrieved.")
+        
 
 if __name__ == "__main__":
     colorama.init(autoreset=True)
     console = RabbitgramConsole()
 
     # Show Account Information
-    arg_info  = getattr(console.args, "info", None)
-    if arg_info:
-        console.print_user_information()
+    if console.args["info"]:
+        console.user_information()
+
+    # Save Media List
+    if console.args["posts"]:
+        console.post_list()
+
+    # Save Media
+    if console.args["media"]:
+        console.user_media()
     

@@ -130,7 +130,7 @@ class Rabbitgram:
         if not user_info["status"] or "user_info" not in user_info: 
             return user_info
         
-        user_info = user_info.get["user_info"]
+        user_info = user_info["user_info"]
 
         end_cursor      = None
         media_list      = []
@@ -191,13 +191,13 @@ class Rabbitgram:
     @check_exception
     def download_media(self, path, url):
         """
-            Success : { "status" : True, replica : True/False}
+            Success : { "status" : True, "replica" : True/False}
             Error   : { "status" : False, "error" : error_message}
         """
         if not os.path.isfile(path):
             urlretrieve(url, path)
             self.logger.info("Media downloaded.")
-            return { "status" : True, replica : False}
+            return { "status" : True, "replica" : False}
         else:
             self.logger.info("Media has already been downloaded.")
-            return { "status" : True, replica : True}
+            return { "status" : True, "replica" : True}
