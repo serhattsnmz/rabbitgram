@@ -3,15 +3,15 @@
 Rabbitgram is Instagram scrapper which you can get accounts informations and download accounts' photos/videos.
 
 ![](https://img.shields.io/static/v1?style=flat-square&label=Licence&message=GPL%20v3&color=blue)
-[![](https://img.shields.io/static/v1?style=flat-square&label=Stable%20Version&message=Waiting&color=red)](https://hub.docker.com/u/serhattsnmz)
-[![](https://img.shields.io/static/v1?style=flat-square&label=Docker%20Hub&message=Waiting&color=red)](https://hub.docker.com/u/serhattsnmz)
+[![](https://img.shields.io/static/v1?style=flat-square&label=Stable%20Version&message=Waiting&color=red)](https://github.com/serhattsnmz/rabbitgram/releases)
+[![](https://img.shields.io/static/v1?style=flat-square&label=Docker%20Hub&message=Passed&color=green)](https://hub.docker.com/repository/docker/serhattsnmz/rabbitgram)
 
 ## Documentation
 
-- Installation
+- [Installation](#installation)
     - [Requirements](#requirements)
-    - [Installation](#installation)
-- Usage
+    - [Installation](#installation-1)
+- [Usage](#usage)
     - [Basic Usage](#basic-usage)
     - [Required Parameters](#required-parameters)
     - [Get Account Information](#get-account-information)
@@ -19,6 +19,10 @@ Rabbitgram is Instagram scrapper which you can get accounts informations and dow
     - [Download Account Media](#download-account-media)
     - [Download From List](#download-from-list)
     - [Create Settings File](#create-settings-file)
+- [Usage With Docker](#usage-with-docker)
+    - [Build or Install Docker Image and Run](#build-or-install-docker-image-and-run)
+    - [Create Shared Folder](#create-shared-folder)
+    - [Pass Arguments to Docker Container](#pass-arguments-to-docker-container)
 
 <hr />
 
@@ -195,4 +199,62 @@ $ python rabbitgram_console.py -s ./user_settings.yml -p new password
 $ python rabbitgram_console.py -s ./user_settings.yml -u new_username -p new password
 $ python rabbitgram_console.py -s ./user_settings.yml -a new_account
 etc...
+```
+
+## Usage With Docker
+
+### Build or Install Docker Image and Run
+
+To create docker image, just run the following codes;
+
+```
+$ cd path/to/rabbitgram
+$ docker build -t serhattsnmz/rabbitgram .
+$ docker run -it --rm serhattsnmz/rabbitgram
+```
+
+Or, just download from docker hub;
+
+```
+$ docker pull serhattsnmz/rabbitgram
+$ docker run -it --rm serhattsnmz/rabbitgram
+```
+
+### Create Shared Folder
+
+You should create a directory for sharing data between docker container and your host machine. ***If you don't, you can see the output of the rabbitgram but all downloaded media or information files will delete after deleting container***. 
+
+```bash
+# Create folder
+$ mkdir D:/shared-folder
+
+# Give the shared folder name to rabbitgram container when using
+$ docker run -it --rm -v D:/shared-folder:/app/shared-folder serhattsnmz/rabbitgram
+```
+
+You can store [user settings file](#create-settings-file) in this directory. If you do this, do not forget to give local path instead of your host machine path.
+
+```bash
+$ ls D:/shared-folder
+user-settings.yml
+
+$ docker run -it --rm -v D:/shared-folder:/app/shared-folder serhattsnmz/rabbitgram -s /app/shared-folder/user-settings.yml
+```
+
+### Pass Arguments to Docker Container
+
+Rabbitgram docker container can take all arguments mentioned above. Just do not forget to give local path instead of your host machine path.
+
+Some usage examples;
+
+```bash
+docker run -it --rm -v D:/shared-folder:/app/shared-folder serhattsnmz/rabbitgram -u username -p password -a account 
+
+docker run -it --rm -v D:/shared-folder:/app/shared-folder serhattsnmz/rabbitgram -s /app/shared-folder/user-settings.yml
+
+docker run -it --rm -v D:/shared-folder:/app/shared-folder serhattsnmz/rabbitgram -s /app/shared-folder/user-settings.yml --info
+
+docker run -it --rm -v D:/shared-folder:/app/shared-folder serhattsnmz/rabbitgram -s /app/shared-folder/user-settings.yml --media --download -o /app/shared-folder
+
+docker run -it --rm -v D:/shared-folder:/app/shared-folder serhattsnmz/rabbitgram -s /app/shared-folder/user-settings.yml --posts --save -o /app/shared-folder/info.json
 ```
